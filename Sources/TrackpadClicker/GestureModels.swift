@@ -1,0 +1,121 @@
+import AppKit
+import Foundation
+
+enum GestureKind: String, CaseIterable, Codable, Identifiable, Sendable {
+    case threeFingerClick
+    case threeFingerTap
+    // Kept only so preferences written by older builds can still be decoded.
+    case threeFingerLongTouch
+    case fourFingerTap
+    case oneFingerForceTouch
+
+    static var allCases: [GestureKind] {
+        [.threeFingerClick, .threeFingerTap, .fourFingerTap, .oneFingerForceTouch]
+    }
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .threeFingerClick: "三指實體按壓"
+        case .threeFingerTap: "三指輕點"
+        case .threeFingerLongTouch: "三指長觸（已移除）"
+        case .fourFingerTap: "四指輕點"
+        case .oneFingerForceTouch: "單指用力按壓"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .threeFingerClick: "三根手指實際按下觸控板"
+        case .threeFingerTap: "三根手指快速碰觸後放開"
+        case .threeFingerLongTouch: "舊版相容項目，不再辨識"
+        case .fourFingerTap: "四根手指快速碰觸後放開"
+        case .oneFingerForceTouch: "Force Touch 進入第二段壓力"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .threeFingerClick: "hand.point.up.left.fill"
+        case .threeFingerTap: "hand.tap.fill"
+        case .threeFingerLongTouch: "hand.raised.slash.fill"
+        case .fourFingerTap: "hand.raised.fingers.spread.fill"
+        case .oneFingerForceTouch: "hand.press.fill"
+        }
+    }
+}
+
+enum GestureAction: String, CaseIterable, Codable, Identifiable, Sendable {
+    case middleClick
+    case leftClick
+    case rightClick
+    case quickLook
+    case missionControl
+    case appExpose
+    case showDesktop
+    case none
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .middleClick: "滑鼠中鍵"
+        case .leftClick: "滑鼠左鍵"
+        case .rightClick: "滑鼠右鍵"
+        case .quickLook: "快速查看"
+        case .missionControl: "Mission Control"
+        case .appExpose: "App Exposé"
+        case .showDesktop: "顯示桌面"
+        case .none: "不執行動作"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .middleClick: "computermouse.fill"
+        case .leftClick: "cursorarrow.click"
+        case .rightClick: "contextualmenu.and.cursorarrow"
+        case .quickLook: "eye.fill"
+        case .missionControl: "rectangle.3.group.fill"
+        case .appExpose: "rectangle.stack.fill"
+        case .showDesktop: "macwindow.on.rectangle"
+        case .none: "minus.circle"
+        }
+    }
+}
+
+struct GestureBinding: Codable, Equatable, Sendable {
+    var isEnabled: Bool
+    var action: GestureAction
+}
+
+struct AppPreferences: Codable, Equatable, Sendable {
+    var isEnabled = true
+    var launchAtLogin = false
+    var tapDuration = 0.36
+    var movementTolerance = 0.045
+    var hapticFeedback = true
+    var bindings: [GestureKind: GestureBinding] = [
+        .threeFingerClick: .init(isEnabled: true, action: .middleClick),
+        .threeFingerTap: .init(isEnabled: true, action: .middleClick),
+        .fourFingerTap: .init(isEnabled: true, action: .missionControl),
+        .oneFingerForceTouch: .init(isEnabled: true, action: .quickLook)
+    ]
+
+    func binding(for gesture: GestureKind) -> GestureBinding {
+        bindings[gesture] ?? .init(isEnabled: false, action: .none)
+    }
+}
+
+struct TouchPoint: Sendable, Equatable {
+    var id: Int32
+    var x: Float
+    var y: Float
+    var pressure: Float
+}
+
+struct TouchFrame: Sendable, Equatable {
+    var timestamp: Double
+    var touches: [TouchPoint]
+}
