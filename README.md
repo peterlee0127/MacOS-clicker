@@ -13,6 +13,7 @@ A native Swift and SwiftUI trackpad gesture utility for macOS.
 - Run in the background without a Dock or menu bar icon
 - Live trackpad preview
 - Launch at login
+- Reset stale Accessibility permission and reopen System Settings
 
 ## Development and Usage
 
@@ -33,6 +34,13 @@ installed only for gestures that are enabled.
 The Xcode project contains a native macOS app target and a
 `TrackpadClickerTests` unit test target. `Package.swift` is also included for
 command-line testing and rapid development.
+
+Xcode Debug builds are isolated from the installed app: they are built as
+`Trackpad Clicker Dev` with the bundle identifier
+`app.peterlee.trackpadclicker.debug`. Debug builds cannot register themselves
+as login items, and Xcode build products are not registered with LaunchServices.
+The release app keeps the `Trackpad Clicker` name and
+`app.peterlee.trackpadclicker` identifier.
 
 Both the Xcode project and `build-app.sh` use a consistent Apple Development
 certificate so that macOS does not treat each rebuild as a different

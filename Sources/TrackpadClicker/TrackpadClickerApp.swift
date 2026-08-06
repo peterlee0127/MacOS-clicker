@@ -39,6 +39,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // an explicitly opened settings window to become active.
         NSApp.setActivationPolicy(.accessory)
         AppModel.shared.coordinator.refresh()
+#if DEBUG
+        // Xcode launches the executable directly and may not send the Open
+        // Application Apple event used by Finder and LaunchServices.
+        showSettings()
+#endif
     }
 
     func applicationShouldHandleReopen(

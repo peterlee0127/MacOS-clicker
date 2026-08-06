@@ -5,6 +5,8 @@ struct SettingsView: View {
     @EnvironmentObject private var coordinator: GestureCoordinator
     @State private var showsAdvancedSettings = false
     @State private var selectedPage = SettingsPage.settings
+    @State private var showsPermissionResetConfirmation = false
+    @State private var permissionResetErrorMessage: String?
 
     private enum SettingsPage: Hashable {
         case settings
@@ -26,6 +28,29 @@ struct SettingsView: View {
             coordinator.setTesting(page == .test)
         }
         .onDisappear { coordinator.setTesting(false) }
+        .confirmationDialog(
+            "重設輔助使用權限？",
+            isPresented: $showsPermissionResetConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("重設並打開系統設定", role: .destructive) {
+                resetAccessibilityPermission()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("目前授權會被移除，必須在系統設定中重新允許此 App。")
+        }
+        .alert(
+            "無法重設輔助使用權限",
+            isPresented: Binding(
+                get: { permissionResetErrorMessage != nil },
+                set: { if !$0 { permissionResetErrorMessage = nil } }
+            )
+        ) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(permissionResetErrorMessage ?? "未知錯誤")
+        }
     }
 
     private var settingsPage: some View {
@@ -218,15 +243,24 @@ struct SettingsView: View {
                     preferences.value.hapticFeedback
                 }, set: { preferences.value.hapticFeedback = $0 }))
                 Divider()
-                Toggle("登入時自動啟動", isOn: Binding(get: {
-                    preferences.value.launchAtLogin
-                }, set: {
-                    preferences.value.launchAtLogin = $0
-                    LaunchAtLoginController.setEnabled($0)
-                }))
+                if LaunchAtLoginController.isAvailable {
+                    Toggle("登入時自動啟動", isOn: Binding(get: {
+                        preferences.value.launchAtLogin
+                    }, set: {
+                        preferences.value.launchAtLogin = $0
+                        LaunchAtLoginController.setEnabled($0)
+                    }))
+                } else {
+                    Label("Debug 版本不提供登入時自動啟動", systemImage: "hammer")
+                        .foregroundStyle(.secondary)
+                }
                 Divider()
                 HStack {
                     Button("打開觸控板設定") { AccessibilityController.openTrackpadSettings() }
+                    Spacer()
+                    Button("重設輔助使用權限", role: .destructive) {
+                        showsPermissionResetConfirmation = true
+                    }
                     Spacer()
                     Button("結束程式") { NSApp.terminate(nil) }
                     Spacer()
@@ -243,6 +277,18 @@ struct SettingsView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(.separator.opacity(0.55)))
     }
 
+    private func resetAccessibilityPermission() {
+        coordinator.stop()
+        do {
+            try AccessibilityController.reset()
+            coordinator.requestPermission()
+            AccessibilityController.openSettings()
+        } catch {
+            permissionResetErrorMessage = error.localizedDescription
+            coordinator.refresh()
+        }
+    }
+
     private var permissionCard: some View {
         HStack(spacing: 12) {
             Image(systemName: "lock.shield.fill")
@@ -255,6 +301,10 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            Button("重設權限") {
+                showsPermissionResetConfirmation = true
+            }
+            .buttonStyle(.bordered)
             Button("打開設定") { coordinator.requestPermission() }
                 .buttonStyle(.borderedProminent)
         }

@@ -47,7 +47,7 @@
 		A2000000000000000000000A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A2000000000000000000000B /* TrackpadClickerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackpadClickerApp.swift; sourceTree = "<group>"; };
 		A2000000000000000000000C /* GestureRecognizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GestureRecognizerTests.swift; sourceTree = "<group>"; };
-		A2000000000000000000000D /* Trackpad Clicker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Trackpad Clicker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2000000000000000000000D /* Trackpad Clicker Dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Trackpad Clicker Dev.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000000000000000000000E /* TrackpadClickerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TrackpadClickerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000000000000000000000F /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		A20000000000000000000010 /* AppIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppIcon.png; sourceTree = "<group>"; };
@@ -56,7 +56,6 @@
 		A20000000000000000000013 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		A20000000000000000000014 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		A20000000000000000000015 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
-		A20000000000000000000016 /* APP_STORE_NOTES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = APP_STORE_NOTES.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,7 +87,6 @@
 				A50000000000000000000006 /* Frameworks */,
 				A20000000000000000000012 /* Package.swift */,
 				A20000000000000000000013 /* README.md */,
-				A20000000000000000000016 /* APP_STORE_NOTES.md */,
 				A50000000000000000000007 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -150,7 +148,7 @@
 		A50000000000000000000007 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A2000000000000000000000D /* Trackpad Clicker.app */,
+				A2000000000000000000000D /* Trackpad Clicker Dev.app */,
 				A2000000000000000000000E /* TrackpadClickerTests.xctest */,
 			);
 			name = Products;
@@ -173,7 +171,7 @@
 			);
 			name = TrackpadClickerDirect;
 			productName = TrackpadClicker;
-			productReference = A2000000000000000000000D /* Trackpad Clicker.app */;
+			productReference = A2000000000000000000000D /* Trackpad Clicker Dev.app */;
 			productType = "com.apple.product-type.application";
 		};
 		A70000000000000000000002 /* TrackpadClickerTests */ = {
@@ -411,10 +409,11 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.peterlee.trackpadclicker;
+				MARKETING_VERSION = 0.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.peterlee.trackpadclicker.debug;
 				PRODUCT_MODULE_NAME = TrackpadClicker;
-				PRODUCT_NAME = "Trackpad Clicker";
+				PRODUCT_NAME = "Trackpad Clicker Dev";
+				REGISTER_APP = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = Debug;
@@ -439,10 +438,11 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.peterlee.trackpadclicker;
 				PRODUCT_MODULE_NAME = TrackpadClicker;
 				PRODUCT_NAME = "Trackpad Clicker";
+				REGISTER_APP = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = Release;
@@ -462,7 +462,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = app.peterlee.trackpadclicker.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Trackpad Clicker.app/Contents/MacOS/TrackpadClicker";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Trackpad Clicker Dev.app/Contents/MacOS/TrackpadClicker";
 			};
 			name = Debug;
 		};
