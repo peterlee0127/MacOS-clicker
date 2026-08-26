@@ -43,13 +43,15 @@ final class GestureCoordinator: NSObject, ObservableObject {
     private let performer = ActionPerformer()
     private var recognizer = GestureRecognizer()
     private var pressureRecognizer = PressureStageRecognizer()
+    private var physicalClickPressureRecognizer = PhysicalClickPressureRecognizer()
     private var eventTap: CFMachPort?
     private var eventTapSource: CFRunLoopSource?
     private var globalPressureMonitor: Any?
     private var localPressureMonitor: Any?
     private var permissionPollingTask: Task<Void, Never>?
     private var currentFingerCount = 0
-    private var suppressingPhysicalClick = false
+    private var pendingPhysicalClickFingerCount: Int?
+    private var suppressedMouseUpType: CGEventType?
     private var lastForceTouchTriggerTime = 0.0
     private var lastProcessedFrameTimestamp = -Double.infinity
 
@@ -74,8 +76,9 @@ final class GestureCoordinator: NSObject, ObservableObject {
             status = .noTrackpad
             return
         }
-        let eventTapReady = !isEnabled(.threeFingerClick) || installEventTap()
-        let pressureMonitorReady = !isEnabled(.oneFingerForceTouch) || installPressureMonitors()
+        let eventTapReady = !hasEnabledPhysicalClick || installEventTap()
+        let pressureMonitorReady = !(hasEnabledPhysicalClick || isEnabled(.oneFingerForceTouch))
+            || installPressureMonitors()
         guard eventTapReady, pressureMonitorReady else {
             bridge.stop()
             removeEventTap()
@@ -94,10 +97,12 @@ final class GestureCoordinator: NSObject, ObservableObject {
         removePressureMonitors()
         recognizer.reset()
         pressureRecognizer.reset()
+        physicalClickPressureRecognizer.reset()
         fingerCount = 0
         currentFingerCount = 0
         lastProcessedFrameTimestamp = -Double.infinity
-        suppressingPhysicalClick = false
+        suppressedMouseUpType = nil
+        pendingPhysicalClickFingerCount = nil
         status = .stopped
     }
 
@@ -140,16 +145,19 @@ final class GestureCoordinator: NSObject, ObservableObject {
         let marker = event.getIntegerValueField(.eventSourceUserData)
         guard marker != 0x5450434C else { return Unmanaged.passUnretained(event) }
 
-        if type == .leftMouseDown,
-           let detection = recognizer.physicalClick(fingerCount: bridge.latestFingerCount, timestamp: ProcessInfo.processInfo.systemUptime),
-           canRecognize(detection.gesture) {
-            suppressingPhysicalClick = true
-            trigger(detection.gesture)
+        if type == .leftMouseDown || type == .rightMouseDown {
+            let fingerCount = bridge.latestFingerCount
+            guard let gesture = physicalClickGesture(for: fingerCount), canRecognize(gesture) else {
+                return Unmanaged.passUnretained(event)
+            }
+            pendingPhysicalClickFingerCount = fingerCount
+            suppressedMouseUpType = type == .rightMouseDown ? .rightMouseUp : .leftMouseUp
+            triggerPhysicalClickIfConfirmed(fingerCount: fingerCount)
             return nil
         }
-        if type == .leftMouseUp,
-           suppressingPhysicalClick {
-            suppressingPhysicalClick = false
+        if type == suppressedMouseUpType {
+            suppressedMouseUpType = nil
+            pendingPhysicalClickFingerCount = nil
             return nil
         }
         return Unmanaged.passUnretained(event)
@@ -159,6 +167,8 @@ final class GestureCoordinator: NSObject, ObservableObject {
     private func installEventTap() -> Bool {
         let mask = (CGEventMask(1) << CGEventType.leftMouseDown.rawValue)
             | (CGEventMask(1) << CGEventType.leftMouseUp.rawValue)
+            | (CGEventMask(1) << CGEventType.rightMouseDown.rawValue)
+            | (CGEventMask(1) << CGEventType.rightMouseUp.rawValue)
         let opaque = Unmanaged.passUnretained(self).toOpaque()
         eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
@@ -195,11 +205,28 @@ final class GestureCoordinator: NSObject, ObservableObject {
     }
 
     private func handlePressure(_ event: NSEvent) {
+        let fingerCount = bridge.latestFingerCount
+        physicalClickPressureRecognizer.process(stage: event.stage, fingerCount: fingerCount)
+        if pendingPhysicalClickFingerCount == fingerCount {
+            triggerPhysicalClickIfConfirmed(fingerCount: fingerCount)
+        }
+
         guard let detection = pressureRecognizer.process(
             stage: event.stage,
-            fingerCount: currentFingerCount,
+            fingerCount: fingerCount,
             timestamp: event.timestamp
         ) else { return }
+        trigger(detection.gesture)
+    }
+
+    private func triggerPhysicalClickIfConfirmed(fingerCount: Int) {
+        guard physicalClickPressureRecognizer.consume(fingerCount: fingerCount),
+              let detection = recognizer.physicalClick(
+                fingerCount: fingerCount,
+                timestamp: ProcessInfo.processInfo.systemUptime
+              )
+        else { return }
+        pendingPhysicalClickFingerCount = nil
         trigger(detection.gesture)
     }
 
@@ -226,6 +253,19 @@ final class GestureCoordinator: NSObject, ObservableObject {
         GestureKind.allCases.contains(where: isEnabled)
     }
 
+    private var hasEnabledPhysicalClick: Bool {
+        [.twoFingerClick, .threeFingerClick, .fourFingerClick].contains(where: isEnabled)
+    }
+
+    private func physicalClickGesture(for fingerCount: Int) -> GestureKind? {
+        switch fingerCount {
+        case 2: .twoFingerClick
+        case 3: .threeFingerClick
+        case 4: .fourFingerClick
+        default: nil
+        }
+    }
+
     private func canRecognize(_ gesture: GestureKind) -> Bool {
         isTesting || isEnabled(gesture)
     }
@@ -242,7 +282,7 @@ final class GestureCoordinator: NSObject, ObservableObject {
         activityPulse += 1
         guard !isTesting else { return }
         let binding = preferences.value.binding(for: gesture)
-        performer.perform(binding.action, haptic: preferences.value.hapticFeedback)
+        performer.perform(binding, haptic: preferences.value.hapticFeedback)
     }
 }
 
@@ -256,7 +296,10 @@ extension GestureCoordinator: MultitouchBridgeDelegate {
             if fingerCount != frame.touches.count {
                 fingerCount = frame.touches.count
             }
-            if frame.touches.isEmpty { pressureRecognizer.reset() }
+            if frame.touches.isEmpty {
+                pressureRecognizer.reset()
+                physicalClickPressureRecognizer.reset()
+            }
             for detection in recognizer.process(frame: frame) where canRecognize(detection.gesture) {
                 trigger(detection.gesture)
             }

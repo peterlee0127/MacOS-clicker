@@ -4,12 +4,13 @@ A native Swift and SwiftUI trackpad gesture utility for macOS.
 
 ## Features
 
-- Three-finger physical click
-- Three-finger tap
-- Four-finger tap
+- Two-, three-, and four-finger physical clicks
+- Two-, three-, and four-finger taps
 - One-finger Force Touch
 - Map each gesture to a left, middle, or right mouse click, Quick Look,
-  Mission Control, App Expose, or Show Desktop
+  Mission Control, App Expose, Show Desktop, or a chosen application
+- Launch a chosen application, or bring all of its windows to the front when it
+  is already running
 - Run in the background without a Dock or menu bar icon
 - Live trackpad preview
 - Launch at login
@@ -29,7 +30,9 @@ Spotlight. To stop the app completely, select **Quit App** under **Advanced
 Settings**.
 
 Background monitoring is event-driven. Mouse and pressure event monitors are
-installed only for gestures that are enabled.
+installed only for gestures that are enabled. Non-trackpad multitouch devices
+such as the Touch Bar are ignored, and steady raw frames are limited to 60 Hz
+while finger landing and lift boundaries remain immediate.
 
 The Xcode project contains a native macOS app target and a
 `TrackpadClickerTests` unit test target. `Package.swift` is also included for
@@ -59,6 +62,8 @@ actions. As a result:
   Mac App Store.
 - macOS updates may change the private framework's behavior. Test the app on
   each target macOS version before distributing it.
+- Multi-finger physical clicks require a pressure-capable trackpad so they can
+  be distinguished reliably from tap-to-click events.
 - If a three-finger tap also triggers the system Look Up action, disable **Look
   up & data detectors** in Trackpad settings.
 

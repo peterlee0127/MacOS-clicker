@@ -1,4 +1,6 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @EnvironmentObject private var preferences: PreferencesStore
@@ -14,14 +16,11 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        TabView(selection: $selectedPage) {
-            settingsPage
-                .tabItem { Label("設定", systemImage: "slider.horizontal.3") }
-                .tag(SettingsPage.settings)
-
-            testPage
-                .tabItem { Label("測試", systemImage: "hand.tap") }
-                .tag(SettingsPage.test)
+        Group {
+            switch selectedPage {
+            case .settings: settingsPage
+            case .test: testPage
+            }
         }
         .frame(minWidth: 620, minHeight: 560)
         .onChange(of: selectedPage) { _, page in
@@ -79,11 +78,15 @@ struct SettingsView: View {
     private var testPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("手勢測試")
-                        .font(.largeTitle.bold())
-                    Text("測試期間只顯示結果，不會執行設定的動作。")
-                        .foregroundStyle(.secondary)
+                HStack(alignment: .center, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("手勢測試")
+                            .font(.largeTitle.bold())
+                        Text("測試期間只顯示結果，不會執行設定的動作。")
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    pageSwitcher
                 }
 
                 if coordinator.status == .needsPermission {
@@ -170,9 +173,22 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            pageSwitcher
             Toggle("啟用", isOn: masterEnabled)
                 .toggleStyle(.switch)
         }
+    }
+
+    private var pageSwitcher: some View {
+        Picker("頁面", selection: $selectedPage) {
+            Text("設定").tag(SettingsPage.settings)
+            Text("測試").tag(SettingsPage.test)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .controlSize(.regular)
+        .frame(width: 154)
+        .accessibilityLabel("頁面")
     }
 
     private var masterEnabled: Binding<Bool> {
@@ -206,10 +222,53 @@ struct SettingsView: View {
     }
 
     private var gestureList: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(GestureKind.allCases.enumerated()), id: \.element.id) { index, gesture in
+        VStack(alignment: .leading, spacing: 12) {
+            Text("手勢")
+                .font(.headline)
+
+            gestureGroup(
+                title: "雙指",
+                note: "預設關閉，避免覆蓋系統輔助按鈕",
+                gestures: [.twoFingerClick, .twoFingerTap]
+            )
+            gestureGroup(
+                title: "三指",
+                gestures: [.threeFingerClick, .threeFingerTap]
+            )
+            gestureGroup(
+                title: "四指",
+                gestures: [.fourFingerClick, .fourFingerTap]
+            )
+            gestureGroup(
+                title: "Force Touch",
+                gestures: [.oneFingerForceTouch]
+            )
+        }
+    }
+
+    private func gestureGroup(
+        title: String,
+        note: String? = nil,
+        gestures: [GestureKind]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                if let note {
+                    Text(note)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 11)
+            .padding(.bottom, 5)
+
+            ForEach(Array(gestures.enumerated()), id: \.element.id) { index, gesture in
                 GestureRow(gesture: gesture)
-                if index < GestureKind.allCases.count - 1 {
+                if index < gestures.count - 1 {
                     Divider().padding(.leading, 56)
                 }
             }
@@ -328,7 +387,7 @@ struct SettingsView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text("三指輕點會在快速碰觸後放開時觸發；實體按壓只在真正按下觸控板時觸發。")
+            Text("輕點會在快速碰觸後放開時觸發；實體按壓必須真正按下觸控板才會觸發。")
             Text("所有辨識都在本機完成。完整多指版本使用 MultitouchSupport，僅供直接散佈。")
         }
         .font(.caption)
@@ -345,39 +404,83 @@ private struct GestureRow: View {
     private var binding: GestureBinding { preferences.binding(for: gesture) }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: gesture.symbol)
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(binding.isEnabled ? Color.accentColor : .secondary)
-                .frame(width: 32, height: 32)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(gesture.title).fontWeight(.medium)
-                Text(gesture.subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 12)
-            Picker("動作", selection: Binding(get: { binding.action }, set: {
-                preferences.update(gesture, action: $0)
-                coordinator.refresh()
-            })) {
-                ForEach(GestureAction.allCases) { action in
-                    Label(action.title, systemImage: action.symbol).tag(action)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                Image(systemName: gesture.symbol)
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(binding.isEnabled ? Color.accentColor : .secondary)
+                    .frame(width: 32, height: 32)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(gesture.title).fontWeight(.medium)
+                    Text(gesture.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
+                Spacer(minLength: 12)
+                Picker("動作", selection: Binding(get: { binding.action }, set: { action in
+                    preferences.update(gesture, action: action)
+                    coordinator.refresh()
+                })) {
+                    ForEach(GestureAction.allCases) { action in
+                        Label(action.title, systemImage: action.symbol).tag(action)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 178)
+                .disabled(!binding.isEnabled)
+                Toggle("啟用 \(gesture.title)", isOn: Binding(get: { binding.isEnabled }, set: {
+                    preferences.update(gesture, enabled: $0)
+                    coordinator.refresh()
+                }))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
             }
-            .labelsHidden()
-            .frame(width: 160)
-            .disabled(!binding.isEnabled)
-            Toggle("啟用 \(gesture.title)", isOn: Binding(get: { binding.isEnabled }, set: {
-                preferences.update(gesture, enabled: $0)
-                coordinator.refresh()
-            }))
-            .labelsHidden()
-            .toggleStyle(.switch)
-            .controlSize(.small)
+
+            if binding.action == .openApplication {
+                HStack(spacing: 8) {
+                    if let application = binding.application {
+                        Label(application.displayName, systemImage: "app.fill")
+                            .lineLimit(1)
+                            .help(application.path)
+                    } else {
+                        Label("請選擇要開啟或切換的 App", systemImage: "exclamationmark.circle.fill")
+                            .foregroundStyle(.orange)
+                    }
+                    Spacer()
+                    Button(binding.application == nil ? "選擇 App" : "更換 App") {
+                        chooseApplication()
+                    }
+                    .controlSize(.small)
+                    .disabled(!binding.isEnabled)
+                }
+                .padding(.leading, 44)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
+    }
+
+    private func chooseApplication() {
+        let panel = NSOpenPanel()
+        panel.title = "選擇要開啟或切換到前景的 App"
+        panel.prompt = "選擇"
+        panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+        panel.allowedContentTypes = [.application]
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            let target = ApplicationTarget(
+                bundleIdentifier: Bundle(url: url)?.bundleIdentifier,
+                path: url.path,
+                displayName: url.deletingPathExtension().lastPathComponent
+            )
+            preferences.setApplication(target, for: gesture)
+            coordinator.refresh()
+        }
     }
 }
 

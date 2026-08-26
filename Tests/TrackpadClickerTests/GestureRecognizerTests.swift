@@ -19,6 +19,22 @@ struct GestureRecognizerTests {
         ])
     }
 
+    @Test func recognizesTwoFingerTap() {
+        var recognizer = GestureRecognizer()
+        #expect(recognizer.process(frame: frame(0.5, count: 2)).isEmpty)
+        #expect(recognizer.process(frame: frame(0.62, count: 0)).isEmpty)
+        #expect(recognizer.process(frame: frame(0.63, count: 0)).first?.gesture == .twoFingerTap)
+    }
+
+    @Test func staggeredThirdFingerPromotesTwoFingerCandidate() {
+        var recognizer = GestureRecognizer()
+        _ = recognizer.process(frame: frame(0.7, count: 2))
+        _ = recognizer.process(frame: frame(0.75, count: 3))
+        _ = recognizer.process(frame: frame(0.85, count: 0))
+        let result = recognizer.process(frame: frame(0.86, count: 0))
+        #expect(result.map(\.gesture) == [.threeFingerTap])
+    }
+
     @Test func recognizesFourFingerTap() {
         var recognizer = GestureRecognizer()
         _ = recognizer.process(frame: frame(2, count: 4))
@@ -156,6 +172,23 @@ struct GestureRecognizerTests {
         #expect(recognizer.process(frame: frame(5.1, count: 0)).isEmpty)
     }
 
+    @Test func recognizesTwoThreeAndFourFingerPhysicalClicks() {
+        let expectations: [(Int, GestureKind)] = [
+            (2, .twoFingerClick),
+            (3, .threeFingerClick),
+            (4, .fourFingerClick),
+        ]
+        for (fingerCount, gesture) in expectations {
+            var recognizer = GestureRecognizer()
+            _ = recognizer.process(frame: frame(5.5, count: fingerCount))
+            #expect(recognizer.physicalClick(
+                fingerCount: fingerCount,
+                timestamp: 5.55
+            )?.gesture == gesture)
+            #expect(recognizer.physicalClick(fingerCount: fingerCount, timestamp: 5.56) == nil)
+        }
+    }
+
     @Test func holdingThreeFingersDoesNotProduceRemovedLongTouch() {
         var recognizer = GestureRecognizer()
         _ = recognizer.process(frame: frame(8, count: 3))
@@ -179,6 +212,40 @@ struct GestureRecognizerTests {
         #expect(recognizer.process(stage: 2, fingerCount: 0, timestamp: 7.1) == nil)
     }
 
+    @Test func physicalClickPressureRequiresStageOneAndExactCount() {
+        var recognizer = PhysicalClickPressureRecognizer()
+        recognizer.process(stage: 0, fingerCount: 3)
+        let stageZeroResult = recognizer.consume(fingerCount: 3)
+        #expect(!stageZeroResult)
+        recognizer.process(stage: 1, fingerCount: 3)
+        let wrongCountResult = recognizer.consume(fingerCount: 2)
+        let firstConsumeResult = recognizer.consume(fingerCount: 3)
+        let duplicateResult = recognizer.consume(fingerCount: 3)
+        #expect(!wrongCountResult)
+        #expect(firstConsumeResult)
+        #expect(!duplicateResult)
+        recognizer.process(stage: 0, fingerCount: 0)
+        recognizer.process(stage: 1, fingerCount: 3)
+        let afterResetResult = recognizer.consume(fingerCount: 3)
+        #expect(afterResetResult)
+    }
+
+    @Test func frameDeliveryGateThrottlesSteadyFramesButNotContactChanges() {
+        var gate = TouchFrameDeliveryGate(minimumInterval: 1.0 / 60.0)
+        let first = gate.shouldDeliver(frame(10, count: 3))
+        let throttled = gate.shouldDeliver(frame(10.008, count: 3))
+        let fingerLift = gate.shouldDeliver(frame(10.009, count: 2))
+        let fullLift = gate.shouldDeliver(frame(10.010, count: 0))
+        let earlyEmpty = gate.shouldDeliver(frame(10.018, count: 0))
+        let debouncedEmpty = gate.shouldDeliver(frame(10.030, count: 0))
+        #expect(first)
+        #expect(!throttled)
+        #expect(fingerLift)
+        #expect(fullLift)
+        #expect(!earlyEmpty)
+        #expect(debouncedEmpty)
+    }
+
     @Test func everyConfiguredActionMapsToExpectedSystemEvent() {
         #expect(GestureAction.middleClick.command == .mouse(
             button: .center,
@@ -196,19 +263,35 @@ struct GestureRecognizerTests {
             up: .rightMouseUp
         ))
         #expect(GestureAction.quickLook.command == .key(keyCode: 49, flags: []))
-        #expect(GestureAction.missionControl.command == .key(keyCode: 126, flags: .maskControl))
+        #expect(GestureAction.missionControl.command == .systemApplication(
+            bundleIdentifier: "com.apple.exposelauncher",
+            fallbackPath: "/System/Applications/Mission Control.app"
+        ))
         #expect(GestureAction.appExpose.command == .key(keyCode: 125, flags: .maskControl))
         #expect(GestureAction.showDesktop.command == .key(keyCode: 103, flags: []))
+        #expect(GestureAction.openApplication.command == .application)
         #expect(GestureAction.none.command == .none)
     }
 
     @Test func defaultPreferencesCoverAllRequestedGestures() {
         let defaults = AppPreferences()
+        #expect(defaults.binding(for: .twoFingerClick) == .init(isEnabled: false, action: .none))
+        #expect(defaults.binding(for: .twoFingerTap) == .init(isEnabled: false, action: .none))
         #expect(defaults.binding(for: .threeFingerClick) == .init(isEnabled: true, action: .middleClick))
         #expect(defaults.binding(for: .threeFingerTap) == .init(isEnabled: true, action: .middleClick))
         #expect(defaults.binding(for: .threeFingerLongTouch) == .init(isEnabled: false, action: .none))
         #expect(defaults.binding(for: .fourFingerTap) == .init(isEnabled: true, action: .missionControl))
+        #expect(defaults.binding(for: .fourFingerClick) == .init(isEnabled: false, action: .none))
         #expect(defaults.binding(for: .oneFingerForceTouch) == .init(isEnabled: true, action: .quickLook))
+    }
+
+    @Test func testPageGesturesAreOrderedByFingerCount() {
+        #expect(GestureKind.allCases == [
+            .oneFingerForceTouch,
+            .twoFingerClick, .twoFingerTap,
+            .threeFingerClick, .threeFingerTap,
+            .fourFingerClick, .fourFingerTap,
+        ])
     }
 
     @Test
@@ -221,10 +304,22 @@ struct GestureRecognizerTests {
         let firstStore = PreferencesStore(defaults: defaults)
         firstStore.update(.threeFingerTap, enabled: false, action: .rightClick)
         firstStore.update(.fourFingerTap, enabled: true, action: .showDesktop)
+        let application = ApplicationTarget(
+            bundleIdentifier: "com.apple.TextEdit",
+            path: "/System/Applications/TextEdit.app",
+            displayName: "TextEdit"
+        )
+        firstStore.update(.twoFingerTap, enabled: true, action: .openApplication)
+        firstStore.setApplication(application, for: .twoFingerTap)
 
         let reloadedStore = PreferencesStore(defaults: defaults)
         #expect(reloadedStore.binding(for: .threeFingerTap) == .init(isEnabled: false, action: .rightClick))
         #expect(reloadedStore.binding(for: .fourFingerTap) == .init(isEnabled: true, action: .showDesktop))
+        #expect(reloadedStore.binding(for: .twoFingerTap) == .init(
+            isEnabled: true,
+            action: .openApplication,
+            application: application
+        ))
         #expect(reloadedStore.binding(for: .threeFingerClick) == .init(isEnabled: true, action: .middleClick))
     }
 

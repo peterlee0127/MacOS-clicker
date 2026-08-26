@@ -38,7 +38,7 @@ struct GestureRecognizer: Sendable {
         let previousMaximumFingerCount = maximumFingerCount
         maximumFingerCount = max(maximumFingerCount, count)
         if maximumFingerCount != previousMaximumFingerCount,
-           maximumFingerCount == 3 || maximumFingerCount == 4 {
+           (2...4).contains(maximumFingerCount) {
             // Start the tap window only after every required finger has landed.
             // Counting from the first finger unfairly penalizes natural staggered contact.
             tapStartedAt = frame.timestamp
@@ -57,7 +57,7 @@ struct GestureRecognizer: Sendable {
         // two consecutive frames below the peak even when the first one is completely
         // empty. This mirrors MiddleDrag's stable-frame debounce and avoids turning a
         // momentary dropout into a click.
-        if (maximumFingerCount == 3 || maximumFingerCount == 4),
+        if (2...4).contains(maximumFingerCount),
            count < maximumFingerCount {
             if firstIncompleteAt == nil { firstIncompleteAt = frame.timestamp }
             incompleteFrameCount += 1
@@ -75,7 +75,7 @@ struct GestureRecognizer: Sendable {
 
         if count == 0 {
             // There was no tap candidate, so an empty frame merely clears landing noise.
-            if maximumFingerCount < 3 {
+            if maximumFingerCount < 2 {
                 resetSequence()
             }
             return []
@@ -123,16 +123,18 @@ struct GestureRecognizer: Sendable {
     ) -> [GestureDetection] {
         var detections: [GestureDetection] = []
         if let tapStartedAt,
-           (maximumFingerCount == 3 || maximumFingerCount == 4),
+           (2...4).contains(maximumFingerCount),
            isSequenceValid,
            !physicalClickOccurred,
            completedAt - tapStartedAt <= tapDuration,
            maximumCentroidMovement <= movementTolerance,
            maximumMeanFingerMovement <= movementTolerance * 2 {
-            detections.append(.init(
-                gesture: maximumFingerCount == 3 ? .threeFingerTap : .fourFingerTap,
-                timestamp: detectionTimestamp
-            ))
+            let gesture: GestureKind = switch maximumFingerCount {
+            case 2: .twoFingerTap
+            case 3: .threeFingerTap
+            default: .fourFingerTap
+            }
+            detections.append(.init(gesture: gesture, timestamp: detectionTimestamp))
         }
         resetSequence()
         ignoringUntilRelease = remainingFingerCount > 0
@@ -140,9 +142,14 @@ struct GestureRecognizer: Sendable {
     }
 
     mutating func physicalClick(fingerCount: Int, timestamp: Double) -> GestureDetection? {
-        guard fingerCount == 3 else { return nil }
+        guard (2...4).contains(fingerCount), !physicalClickOccurred else { return nil }
         physicalClickOccurred = true
-        return .init(gesture: .threeFingerClick, timestamp: timestamp)
+        let gesture: GestureKind = switch fingerCount {
+        case 2: .twoFingerClick
+        case 3: .threeFingerClick
+        default: .fourFingerClick
+        }
+        return .init(gesture: gesture, timestamp: timestamp)
     }
 
     mutating func reset() {
@@ -190,5 +197,32 @@ struct PressureStageRecognizer: Sendable {
 
     mutating func reset() {
         isLatched = false
+    }
+}
+
+/// Tracks the first pressure stage separately from tap-to-click mouse events.
+/// A physical multi-finger click is consumed only once per press.
+struct PhysicalClickPressureRecognizer: Sendable {
+    private var confirmedFingerCount: Int?
+    private var wasConsumed = false
+
+    mutating func process(stage: Int, fingerCount: Int) {
+        if stage == 0 || fingerCount == 0 {
+            reset()
+            return
+        }
+        guard stage >= 1, (2...4).contains(fingerCount) else { return }
+        confirmedFingerCount = fingerCount
+    }
+
+    mutating func consume(fingerCount: Int) -> Bool {
+        guard confirmedFingerCount == fingerCount, !wasConsumed else { return false }
+        wasConsumed = true
+        return true
+    }
+
+    mutating func reset() {
+        confirmedFingerCount = nil
+        wasConsumed = false
     }
 }

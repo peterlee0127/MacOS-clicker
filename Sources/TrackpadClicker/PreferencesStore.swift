@@ -37,6 +37,12 @@ final class PreferencesStore: ObservableObject {
         value.bindings[gesture] = binding
     }
 
+    func setApplication(_ application: ApplicationTarget?, for gesture: GestureKind) {
+        var binding = value.binding(for: gesture)
+        binding.application = application
+        value.bindings[gesture] = binding
+    }
+
     private func save() {
         guard let data = try? JSONEncoder().encode(value) else { return }
         defaults.set(data, forKey: key)
