@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: NSWindow?
     private var launchedAsLoginItem = false
     private var handledInitialOpenApplicationEvent = false
+    private var wakeRecoveryTask: Task<Void, Never>?
 
     override init() {
         super.init()
@@ -38,12 +39,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Keep the process out of the Dock and Command-Tab while still allowing
         // an explicitly opened settings window to become active.
         NSApp.setActivationPolicy(.accessory)
+        observeWorkspacePowerEvents()
         AppModel.shared.coordinator.refresh()
 #if DEBUG
         // Xcode launches the executable directly and may not send the Open
         // Application Apple event used by Finder and LaunchServices.
         showSettings()
 #endif
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        wakeRecoveryTask?.cancel()
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 
     func applicationShouldHandleReopen(
@@ -85,6 +96,72 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return false
         }
         return event.paramDescriptor(forKeyword: keyAELaunchedAsLogInItem) != nil
+    }
+
+    private func observeWorkspacePowerEvents() {
+        let center = NSWorkspace.shared.notificationCenter
+        center.addObserver(
+            self,
+            selector: #selector(systemWillSleep(_:)),
+            name: NSWorkspace.willSleepNotification,
+            object: nil
+        )
+        center.addObserver(
+            self,
+            selector: #selector(systemDidBecomeAvailable(_:)),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+        center.addObserver(
+            self,
+            selector: #selector(systemDidBecomeAvailable(_:)),
+            name: NSWorkspace.screensDidWakeNotification,
+            object: nil
+        )
+        center.addObserver(
+            self,
+            selector: #selector(systemDidBecomeAvailable(_:)),
+            name: NSWorkspace.sessionDidBecomeActiveNotification,
+            object: nil
+        )
+    }
+
+    @objc
+    private func systemWillSleep(_ notification: Notification) {
+        wakeRecoveryTask?.cancel()
+        wakeRecoveryTask = nil
+        // MultitouchSupport device references and event taps may be invalidated
+        // while macOS sleeps. Release them before the hardware disappears.
+        AppModel.shared.coordinator.stop()
+    }
+
+    @objc
+    private func systemDidBecomeAvailable(_ notification: Notification) {
+        scheduleWakeRecovery()
+    }
+
+    private func scheduleWakeRecovery() {
+        wakeRecoveryTask?.cancel()
+        wakeRecoveryTask = Task { @MainActor [weak self] in
+            // Trackpad services can return before their devices are ready,
+            // especially after hibernation. Retry only transient start failures.
+            for delay in [Duration.seconds(1), .seconds(2), .seconds(4)] {
+                do {
+                    try await Task.sleep(for: delay)
+                } catch {
+                    return
+                }
+                guard let self, !Task.isCancelled else { return }
+                let coordinator = AppModel.shared.coordinator
+                coordinator.refresh()
+                guard coordinator.status == .noTrackpad
+                        || coordinator.status == .eventMonitorUnavailable else {
+                    self.wakeRecoveryTask = nil
+                    return
+                }
+            }
+            self?.wakeRecoveryTask = nil
+        }
     }
 
     private func showSettings() {

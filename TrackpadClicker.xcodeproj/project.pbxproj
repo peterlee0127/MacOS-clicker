@@ -409,7 +409,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = app.peterlee.trackpadclicker.debug;
 				PRODUCT_MODULE_NAME = TrackpadClicker;
 				PRODUCT_NAME = "Trackpad Clicker Dev";
@@ -438,7 +438,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 0.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = app.peterlee.trackpadclicker;
 				PRODUCT_MODULE_NAME = TrackpadClicker;
 				PRODUCT_NAME = "Trackpad Clicker";
