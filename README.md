@@ -22,6 +22,16 @@ A native Swift and SwiftUI trackpad gesture utility for macOS.
   window exits test mode
 - Apply tap duration and movement tolerance changes immediately
 
+## In-app Activity Log
+
+Open the **紀錄** tab and enable **啟用紀錄** to record gesture recognition,
+action requests, monitoring changes, reconnections, and sleep/wake events.
+Logging defaults to off; the toggle persists across launches. The most recent
+1,000 entries are held in memory for the current app session, newest first in
+the viewer. Disabling logging stops new entries while retaining existing ones.
+Use **複製全部** to copy the log or **清除紀錄** to clear it. Action requests do
+not confirm that another application completed the requested action.
+
 ## Development and Usage
 
 1. Open `TrackpadClicker.xcodeproj` in Xcode.

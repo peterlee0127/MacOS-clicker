@@ -31,7 +31,13 @@ final class GestureCoordinator: NSObject, ObservableObject {
         }
     }
 
-    @Published private(set) var status: Status = .stopped
+    let activityLog = ActivityLog()
+
+    @Published private(set) var status: Status = .stopped {
+        didSet {
+            if oldValue != status { activityLog.record("監聽", status.title) }
+        }
+    }
     @Published private(set) var fingerCount = 0
     @Published private(set) var lastGesture: GestureKind?
     @Published private(set) var activityPulse = 0
@@ -120,6 +126,7 @@ final class GestureCoordinator: NSObject, ObservableObject {
 
     func setTesting(_ enabled: Bool) {
         guard isTesting != enabled else { return }
+        activityLog.record("測試", enabled ? "進入測試模式，不執行動作。" : "離開測試模式。")
         isTesting = enabled
         if enabled { clearTestResults() }
         refresh()
@@ -130,7 +137,8 @@ final class GestureCoordinator: NSObject, ObservableObject {
         lastGesture = nil
     }
 
-    func reconnect() {
+    func reconnect(reason: String = "手動重新偵測") {
+        activityLog.record("重連", reason)
         lastRecovery = Date()
         refresh()
     }
@@ -154,13 +162,13 @@ final class GestureCoordinator: NSObject, ObservableObject {
                 // after a minute, without treating silence as an error in the UI.
                 if status == .noTrackpad || status == .eventMonitorUnavailable
                     || bridge.secondsSinceLastCallback >= 60 {
-                    reconnect()
+                    reconnect(reason: "健康檢查：監聽未就緒或超過 60 秒未收到觸控資料（也可能是閒置）。")
                     return
                 }
                 if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
                     CGEvent.tapEnable(tap: eventTap, enable: true)
                     if !CGEvent.tapIsEnabled(tap: eventTap) {
-                        reconnect()
+                        reconnect(reason: "事件監聽重新啟用失敗。")
                         return
                     }
                 }
@@ -184,6 +192,7 @@ final class GestureCoordinator: NSObject, ObservableObject {
 
     fileprivate func handleEvent(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            activityLog.record("監聽", type == .tapDisabledByTimeout ? "事件監聽逾時，嘗試重新啟用。" : "系統停用事件監聽，嘗試重新啟用。")
             if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
@@ -329,8 +338,10 @@ final class GestureCoordinator: NSObject, ObservableObject {
         lastGesture = gesture
         detectedGestures.insert(gesture)
         activityPulse += 1
+        activityLog.record("手勢", "辨識到\(gesture.title)\(isTesting ? "（測試，不執行）" : "")")
         guard !isTesting else { return }
         let binding = preferences.value.binding(for: gesture)
+        activityLog.record("動作", "要求執行：\(binding.action.title)（不代表目標 App 已完成動作）")
         performer.perform(binding, haptic: preferences.value.hapticFeedback)
     }
 }
@@ -340,7 +351,11 @@ extension GestureCoordinator: MultitouchBridgeDelegate {
         let sessionID = bridge.sessionID
         Task { @MainActor [weak self] in
             guard let self, status == .listening, self.bridge.sessionID == sessionID else { return }
+            if lastProcessedFrameTimestamp == -Double.infinity {
+                activityLog.record("觸控板", "本次連線已收到觸控資料。")
+            }
             if frame.timestamp < lastProcessedFrameTimestamp - 1 {
+                activityLog.record("觸控板", "裝置時間戳重置，已重設辨識狀態。")
                 recognizer.reset()
                 pressureRecognizer.reset()
                 physicalClickPressureRecognizer.reset()

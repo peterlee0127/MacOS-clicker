@@ -22,6 +22,7 @@
 		A1000000000000000000000D /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* AppIcon.icns */; };
 		A1000000000000000000000E /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* AppKit.framework */; };
 		A1000000000000000000000F /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* ApplicationServices.framework */; };
+		A10000000000000000000010 /* ActivityLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* ActivityLog.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,7 @@
 		A20000000000000000000013 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		A20000000000000000000014 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		A20000000000000000000015 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
+		A20000000000000000000016 /* ActivityLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityLog.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -102,6 +104,7 @@
 		A50000000000000000000003 /* TrackpadClicker */ = {
 			isa = PBXGroup;
 			children = (
+				A20000000000000000000016 /* ActivityLog.swift */,
 				A20000000000000000000001 /* AccessibilityController.swift */,
 				A20000000000000000000002 /* ActionPerformer.swift */,
 				A20000000000000000000003 /* GestureCoordinator.swift */,
@@ -254,6 +257,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000010 /* ActivityLog.swift in Sources */,
 				A10000000000000000000001 /* AccessibilityController.swift in Sources */,
 				A10000000000000000000002 /* ActionPerformer.swift in Sources */,
 				A10000000000000000000003 /* GestureCoordinator.swift in Sources */,

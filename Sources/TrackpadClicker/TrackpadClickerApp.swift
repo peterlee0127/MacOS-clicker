@@ -132,11 +132,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         wakeRecoveryTask = nil
         // MultitouchSupport device references and event taps may be invalidated
         // while macOS sleeps. Release them before the hardware disappears.
+        AppModel.shared.coordinator.activityLog.record("電源", "系統即將睡眠，停止監聽。")
         AppModel.shared.coordinator.stop()
     }
 
     @objc
     private func systemDidBecomeAvailable(_ notification: Notification) {
+        AppModel.shared.coordinator.activityLog.record("電源", "收到喚醒或工作階段恢復通知，準備重新連線。")
         scheduleWakeRecovery()
     }
 
@@ -153,7 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 }
                 guard let self, !Task.isCancelled else { return }
                 let coordinator = AppModel.shared.coordinator
-                coordinator.refresh()
+                coordinator.reconnect(reason: "喚醒後重新建立監聽。")
                 guard coordinator.status == .noTrackpad
                         || coordinator.status == .eventMonitorUnavailable else {
                     self.wakeRecoveryTask = nil

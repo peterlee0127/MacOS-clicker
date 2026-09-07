@@ -10,6 +10,44 @@ struct GestureRecognizerTests {
         })
     }
 
+    @Test @MainActor func loggingTogglePersistsAndStopsNewEntries() throws {
+        let suite = "ActivityLogTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let log = ActivityLog(defaults: defaults)
+        #expect(!log.isEnabled)
+        log.record("測試", "不應記錄")
+        #expect(log.entries.isEmpty)
+        log.setEnabled(true)
+        log.record("手勢", "三指輕點")
+        #expect(log.plainText.contains("三指輕點"))
+        #expect(ActivityLog(defaults: defaults).isEnabled)
+        log.setEnabled(false)
+        let count = log.entries.count
+        log.record("測試", "不應新增")
+        #expect(log.entries.count == count)
+        #expect(!ActivityLog(defaults: defaults).isEnabled)
+        log.clear()
+        #expect(log.entries.isEmpty)
+    }
+
+    @Test @MainActor func loggingKeepsOnlyRecentEntriesAndClearsWhileEnabled() throws {
+        let suite = "ActivityLogTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let log = ActivityLog(defaults: defaults)
+        log.setEnabled(true)
+        for index in 0...ActivityLog.capacity { log.record("測試", "事件 \(index)") }
+        #expect(log.entries.count == ActivityLog.capacity)
+        #expect(log.entries.first?.message == "事件 1")
+        #expect(log.entries.last?.message == "事件 1000")
+        log.clear()
+        #expect(log.entries.isEmpty)
+        #expect(log.isEnabled)
+        log.record("測試", "繼續記錄")
+        #expect(log.entries.count == 1)
+    }
+
     @Test func frameDeliveryResumesAfterDeviceClockRestarts() {
         var gate = TouchFrameDeliveryGate()
         let beforeSleep = gate.shouldDeliver(frame(9000, count: 3))

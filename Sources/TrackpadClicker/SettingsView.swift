@@ -13,6 +13,7 @@ struct SettingsView: View {
     private enum SettingsPage: Hashable {
         case settings
         case test
+        case logs
     }
 
     var body: some View {
@@ -20,6 +21,7 @@ struct SettingsView: View {
             switch selectedPage {
             case .settings: settingsPage
             case .test: testPage
+            case .logs: logsPage
             }
         }
         .frame(minWidth: 620, minHeight: 560)
@@ -29,7 +31,7 @@ struct SettingsView: View {
         .onAppear { coordinator.setTesting(selectedPage == .test) }
         .onDisappear { coordinator.setTesting(false) }
         .onChange(of: coordinator.isTesting) { _, testing in
-            if !testing { selectedPage = .settings }
+            if !testing && selectedPage == .test { selectedPage = .settings }
         }
         .confirmationDialog(
             "重設輔助使用權限？",
@@ -77,6 +79,18 @@ struct SettingsView: View {
             .padding(28)
             .frame(maxWidth: 680, alignment: .leading)
         }
+    }
+
+    private var logsPage: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("執行紀錄").font(.largeTitle.bold())
+                Spacer()
+                pageSwitcher
+            }
+            ActivityLogView(log: coordinator.activityLog)
+        }
+        .padding(28)
     }
 
     private var testPage: some View {
@@ -188,11 +202,12 @@ struct SettingsView: View {
         Picker("頁面", selection: $selectedPage) {
             Text("設定").tag(SettingsPage.settings)
             Text("測試").tag(SettingsPage.test)
+            Text("紀錄").tag(SettingsPage.logs)
         }
         .pickerStyle(.segmented)
         .labelsHidden()
         .controlSize(.regular)
-        .frame(width: 154)
+        .frame(width: 195)
         .accessibilityLabel("頁面")
     }
 
@@ -512,5 +527,69 @@ private struct SliderSetting: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 62, alignment: .trailing)
         }
+    }
+}
+
+private struct ActivityLogView: View {
+    @ObservedObject var log: ActivityLog
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Toggle("啟用紀錄", isOn: Binding(
+                get: { log.isEnabled },
+                set: { log.setEnabled($0) }
+            ))
+            .toggleStyle(.switch)
+            Text("保留本次開啟程式的最近 1,000 筆紀錄，結束程式後清空。開關設定會保留；關閉後停止新增，既有紀錄仍可查看。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Label(log.isEnabled ? "正在紀錄" : "紀錄已關閉",
+                      systemImage: log.isEnabled ? "record.circle" : "pause.circle")
+                Spacer()
+                Text("\(log.entries.count) 筆").foregroundStyle(.secondary)
+                Button("複製全部") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(log.plainText, forType: .string)
+                }
+                .disabled(log.entries.isEmpty)
+                Button("清除紀錄") { log.clear() }
+                    .disabled(log.entries.isEmpty)
+            }
+            Divider()
+            if log.entries.isEmpty {
+                ContentUnavailableView(
+                    log.isEnabled ? "尚無紀錄" : "紀錄尚未啟用",
+                    systemImage: "list.bullet.rectangle",
+                    description: Text(log.isEnabled
+                        ? "操作手勢或重新偵測後，紀錄會顯示在這裡。"
+                        : "開啟上方開關後，會記錄手勢、監聽狀態與睡眠喚醒事件。")
+                )
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(log.entries.reversed()) { entry in
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text(entry.category).fontWeight(.medium)
+                                    Spacer()
+                                    Text(entry.date.formatted(date: .numeric, time: .standard))
+                                        .monospacedDigit()
+                                        .foregroundStyle(.secondary)
+                                }
+                                .font(.caption)
+                                Text(entry.message)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(.vertical, 10)
+                            Divider()
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
