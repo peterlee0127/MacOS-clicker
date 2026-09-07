@@ -55,9 +55,8 @@ private nonisolated(unsafe) var callbackLock = os_unfair_lock()
 private let contactCallback: MTContactCallback = { _, pointer, count, timestamp, _ in
     guard count >= 0 else { return 0 }
     os_unfair_lock_lock(&callbackLock)
-    let bridge = activeBridge
-    os_unfair_lock_unlock(&callbackLock)
-    bridge?.receive(pointer: pointer, count: Int(count), timestamp: timestamp)
+    defer { os_unfair_lock_unlock(&callbackLock) }
+    activeBridge?.receive(pointer: pointer, count: Int(count), timestamp: timestamp)
     return 0
 }
 
@@ -66,6 +65,9 @@ final class MultitouchBridge: @unchecked Sendable {
 
     private var handle: UnsafeMutableRawPointer?
     private var devices: [MTDeviceRef] = []
+    // Keep the array owning the raw device pointers alive until devices stop.
+    private var deviceList: CFArray?
+    private(set) var sessionID = UUID()
     private var createList: CreateListFunction?
     private var register: RegisterFunction?
     private var unregister: UnregisterFunction?
@@ -74,6 +76,13 @@ final class MultitouchBridge: @unchecked Sendable {
     private var sensorDimensions: SensorDimensionsFunction?
     private var touchStateLock = os_unfair_lock()
     private var latestFingerCountStorage = 0
+    private var lastCallbackAt = ProcessInfo.processInfo.systemUptime
+
+    var secondsSinceLastCallback: Double {
+        os_unfair_lock_lock(&touchStateLock)
+        defer { os_unfair_lock_unlock(&touchStateLock) }
+        return ProcessInfo.processInfo.systemUptime - lastCallbackAt
+    }
     private var deliveryGate = TouchFrameDeliveryGate()
 
     private(set) var isRunning = false
@@ -106,6 +115,9 @@ final class MultitouchBridge: @unchecked Sendable {
               let list = createList()?.takeRetainedValue()
         else { return false }
 
+        deviceList = list
+        sessionID = UUID()
+        resetTouchState()
         os_unfair_lock_lock(&callbackLock)
         activeBridge = self
         os_unfair_lock_unlock(&callbackLock)
@@ -126,19 +138,24 @@ final class MultitouchBridge: @unchecked Sendable {
             devices.append(device)
         }
         isRunning = !devices.isEmpty
-        if !isRunning { clearActiveBridge() }
+        if !isRunning {
+            clearActiveBridge()
+            deviceList = nil
+        }
         return isRunning
     }
 
     func stop() {
+        clearActiveBridge()
+        sessionID = UUID()
         resetTouchState()
         guard isRunning else { return }
-        clearActiveBridge()
         for device in devices {
             unregister?(device, contactCallback)
             stopDevice?(device)
         }
         devices.removeAll()
+        deviceList = nil
         isRunning = false
     }
 
@@ -175,6 +192,7 @@ final class MultitouchBridge: @unchecked Sendable {
     private func prepareForDelivery(_ frame: TouchFrame) -> Bool {
         os_unfair_lock_lock(&touchStateLock)
         defer { os_unfair_lock_unlock(&touchStateLock) }
+        lastCallbackAt = ProcessInfo.processInfo.systemUptime
         latestFingerCountStorage = frame.touches.count
         return deliveryGate.shouldDeliver(frame)
     }
@@ -182,6 +200,7 @@ final class MultitouchBridge: @unchecked Sendable {
     private func resetTouchState() {
         os_unfair_lock_lock(&touchStateLock)
         latestFingerCountStorage = 0
+        lastCallbackAt = ProcessInfo.processInfo.systemUptime
         deliveryGate.reset()
         os_unfair_lock_unlock(&touchStateLock)
     }
@@ -223,6 +242,9 @@ struct TouchFrameDeliveryGate: Sendable {
     }
 
     mutating func shouldDeliver(_ frame: TouchFrame) -> Bool {
+        // A device clock can restart after reconnecting. Keep small out-of-order
+        // frames throttled, but do not freeze delivery behind the old clock.
+        if frame.timestamp < lastDeliveredAt - 1 { reset() }
         let contactIDs = frame.touches.map(\.id).sorted()
         let isBoundary = contactIDs != lastContactIDs
         guard isBoundary || frame.timestamp - lastDeliveredAt >= minimumInterval else {

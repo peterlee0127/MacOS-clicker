@@ -26,7 +26,11 @@ struct SettingsView: View {
         .onChange(of: selectedPage) { _, page in
             coordinator.setTesting(page == .test)
         }
+        .onAppear { coordinator.setTesting(selectedPage == .test) }
         .onDisappear { coordinator.setTesting(false) }
+        .onChange(of: coordinator.isTesting) { _, testing in
+            if !testing { selectedPage = .settings }
+        }
         .confirmationDialog(
             "重設輔助使用權限？",
             isPresented: $showsPermissionResetConfirmation,
@@ -94,6 +98,7 @@ struct SettingsView: View {
                 } else if coordinator.status == .noTrackpad || coordinator.status == .eventMonitorUnavailable {
                     warningCard
                 }
+                activityRow
                 testTrackpad
                 testResults
             }
@@ -206,7 +211,7 @@ struct SettingsView: View {
             Circle()
                 .fill(Color(nsColor: coordinator.status.color))
                 .frame(width: 9, height: 9)
-            Text(coordinator.status.title)
+            Text(coordinator.isTesting ? "測試中・不執行動作" : coordinator.status.title)
                 .fontWeight(.medium)
             Spacer()
             if coordinator.fingerCount > 0 {
@@ -216,6 +221,9 @@ struct SettingsView: View {
                 Text("上次：\(lastGesture.title)")
                     .foregroundStyle(.secondary)
             }
+            Button("重新偵測") { coordinator.reconnect() }
+                .help(coordinator.lastRecovery.map { "上次重新偵測：\($0.formatted(date: .omitted, time: .standard))" }
+                      ?? "重新連接觸控板與事件監聽，保留所有設定")
         }
         .padding(12)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
@@ -284,6 +292,7 @@ struct SettingsView: View {
                     title: "最長輕點時間",
                     value: Binding(get: { preferences.value.tapDuration }, set: {
                         preferences.value.tapDuration = $0
+                        coordinator.updateSensitivity()
                     }),
                     range: 0.18...0.55,
                     valueText: "\(Int(preferences.value.tapDuration * 1000)) ms"
@@ -293,6 +302,7 @@ struct SettingsView: View {
                     title: "移動容許範圍",
                     value: Binding(get: { preferences.value.movementTolerance }, set: {
                         preferences.value.movementTolerance = $0
+                        coordinator.updateSensitivity()
                     }),
                     range: 0.015...0.09,
                     valueText: String(format: "%.1f%%", preferences.value.movementTolerance * 100)
@@ -364,7 +374,10 @@ struct SettingsView: View {
                 showsPermissionResetConfirmation = true
             }
             .buttonStyle(.bordered)
-            Button("打開設定") { coordinator.requestPermission() }
+            Button("打開設定") {
+                coordinator.requestPermission()
+                AccessibilityController.openSettings()
+            }
                 .buttonStyle(.borderedProminent)
         }
         .padding(14)

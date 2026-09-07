@@ -10,6 +10,23 @@ struct GestureRecognizerTests {
         })
     }
 
+    @Test func frameDeliveryResumesAfterDeviceClockRestarts() {
+        var gate = TouchFrameDeliveryGate()
+        let beforeSleep = gate.shouldDeliver(frame(9000, count: 3))
+        let restarted = gate.shouldDeliver(frame(0.1, count: 3))
+        let nextFrame = gate.shouldDeliver(frame(0.12, count: 3))
+        let released = gate.shouldDeliver(frame(0.13, count: 0))
+        #expect(beforeSleep && restarted && nextFrame && released)
+    }
+
+    @Test func slightlyOutOfOrderFramesStayThrottled() {
+        var gate = TouchFrameDeliveryGate()
+        let first = gate.shouldDeliver(frame(10, count: 3))
+        let stale = gate.shouldDeliver(frame(9.99, count: 3))
+        let next = gate.shouldDeliver(frame(10.02, count: 3))
+        #expect(first && !stale && next)
+    }
+
     @Test func recognizesThreeFingerTap() {
         var recognizer = GestureRecognizer()
         #expect(recognizer.process(frame: frame(1, count: 3)).isEmpty)

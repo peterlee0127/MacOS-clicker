@@ -48,6 +48,8 @@ final class GestureCoordinator: NSObject, ObservableObject {
     private var eventTapSource: CFRunLoopSource?
     private var globalPressureMonitor: Any?
     private var localPressureMonitor: Any?
+    private var healthTask: Task<Void, Never>?
+    @Published private(set) var lastRecovery: Date?
     private var permissionPollingTask: Task<Void, Never>?
     private var currentFingerCount = 0
     private var pendingPhysicalClickFingerCount: Int?
@@ -63,8 +65,9 @@ final class GestureCoordinator: NSObject, ObservableObject {
 
     func refresh() {
         stop()
-        guard preferences.value.isEnabled else { return }
-        guard hasEnabledGestures else { return }
+        guard isTesting || preferences.value.isEnabled else { return }
+        guard isTesting || hasEnabledGestures else { return }
+        startHealthMonitoring()
         guard AccessibilityController.isTrusted else {
             status = .needsPermission
             startPermissionPolling()
@@ -76,8 +79,8 @@ final class GestureCoordinator: NSObject, ObservableObject {
             status = .noTrackpad
             return
         }
-        let eventTapReady = !hasEnabledPhysicalClick || installEventTap()
-        let pressureMonitorReady = !(hasEnabledPhysicalClick || isEnabled(.oneFingerForceTouch))
+        let eventTapReady = !(isTesting || hasEnabledPhysicalClick) || installEventTap()
+        let pressureMonitorReady = !(isTesting || hasEnabledPhysicalClick || isEnabled(.oneFingerForceTouch))
             || installPressureMonitors()
         guard eventTapReady, pressureMonitorReady else {
             bridge.stop()
@@ -90,6 +93,8 @@ final class GestureCoordinator: NSObject, ObservableObject {
     }
 
     func stop() {
+        healthTask?.cancel()
+        healthTask = nil
         permissionPollingTask?.cancel()
         permissionPollingTask = nil
         bridge.stop()
@@ -103,6 +108,7 @@ final class GestureCoordinator: NSObject, ObservableObject {
         lastProcessedFrameTimestamp = -Double.infinity
         suppressedMouseUpType = nil
         pendingPhysicalClickFingerCount = nil
+        lastForceTouchTriggerTime = 0
         status = .stopped
     }
 
@@ -113,13 +119,53 @@ final class GestureCoordinator: NSObject, ObservableObject {
     }
 
     func setTesting(_ enabled: Bool) {
+        guard isTesting != enabled else { return }
         isTesting = enabled
         if enabled { clearTestResults() }
+        refresh()
     }
 
     func clearTestResults() {
         detectedGestures.removeAll()
         lastGesture = nil
+    }
+
+    func reconnect() {
+        lastRecovery = Date()
+        refresh()
+    }
+
+    func updateSensitivity() {
+        recognizer.tapDuration = preferences.value.tapDuration
+        recognizer.movementTolerance = Float(preferences.value.movementTolerance)
+        recognizer.reset()
+    }
+
+    private func startHealthMonitoring() {
+        healthTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(15)) } catch { return }
+                guard let self, !Task.isCancelled else { return }
+                if !AccessibilityController.isTrusted {
+                    refresh()
+                    return
+                }
+                // Silence is also normal on an idle trackpad. Reopen conservatively
+                // after a minute, without treating silence as an error in the UI.
+                if status == .noTrackpad || status == .eventMonitorUnavailable
+                    || bridge.secondsSinceLastCallback >= 60 {
+                    reconnect()
+                    return
+                }
+                if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+                    CGEvent.tapEnable(tap: eventTap, enable: true)
+                    if !CGEvent.tapIsEnabled(tap: eventTap) {
+                        reconnect()
+                        return
+                    }
+                }
+            }
+        }
     }
 
     private func startPermissionPolling() {
@@ -231,7 +277,10 @@ final class GestureCoordinator: NSObject, ObservableObject {
     }
 
     private func removeEventTap() {
-        if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: false) }
+        if let eventTap {
+            CGEvent.tapEnable(tap: eventTap, enable: false)
+            CFMachPortInvalidate(eventTap)
+        }
         if let eventTapSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), eventTapSource, .commonModes) }
         eventTap = nil
         eventTapSource = nil
@@ -288,8 +337,16 @@ final class GestureCoordinator: NSObject, ObservableObject {
 
 extension GestureCoordinator: MultitouchBridgeDelegate {
     nonisolated func multitouchBridge(_ bridge: MultitouchBridge, received frame: TouchFrame) {
+        let sessionID = bridge.sessionID
         Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self, status == .listening, self.bridge.sessionID == sessionID else { return }
+            if frame.timestamp < lastProcessedFrameTimestamp - 1 {
+                recognizer.reset()
+                pressureRecognizer.reset()
+                physicalClickPressureRecognizer.reset()
+                pendingPhysicalClickFingerCount = nil
+                lastProcessedFrameTimestamp = -Double.infinity
+            }
             guard frame.timestamp >= lastProcessedFrameTimestamp else { return }
             lastProcessedFrameTimestamp = frame.timestamp
             currentFingerCount = frame.touches.count

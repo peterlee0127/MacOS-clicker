@@ -16,7 +16,7 @@ final class AppModel {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var settingsWindow: NSWindow?
     private var launchedAsLoginItem = false
     private var handledInitialOpenApplicationEvent = false
@@ -173,12 +173,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func windowWillClose(_ notification: Notification) {
+        AppModel.shared.coordinator.setTesting(false)
+    }
+
     private func makeSettingsWindow() -> NSWindow {
         let model = AppModel.shared
         let rootView = SettingsView()
             .environmentObject(model.preferences)
             .environmentObject(model.coordinator)
         let window = NSWindow(contentViewController: NSHostingController(rootView: rootView))
+        window.delegate = self
         window.title = "Trackpad Clicker 設定"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 680, height: 720))

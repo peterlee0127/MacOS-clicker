@@ -15,6 +15,12 @@ A native Swift and SwiftUI trackpad gesture utility for macOS.
 - Live trackpad preview
 - Launch at login
 - Reset stale Accessibility permission and reopen System Settings
+- Recover monitoring after sleep, retry disconnected devices, and reopen silent
+  touch streams after 60 seconds (checked every 15 seconds)
+- Reconnect manually from Settings without changing gesture bindings
+- Test all gestures independently of enabled bindings; closing the settings
+  window exits test mode
+- Apply tap duration and movement tolerance changes immediately
 
 ## Development and Usage
 
@@ -29,7 +35,9 @@ bar. To change its settings again, open `Trackpad Clicker.app` from Finder or
 Spotlight. To stop the app completely, select **Quit App** under **Advanced
 Settings**.
 
-Background monitoring is event-driven. Mouse and pressure event monitors are
+Touch processing is event-driven, with a lightweight monitoring health check
+every 15 seconds while enabled. Idle touch streams are conservatively reopened
+after 60 seconds; silence alone is not reported as a device failure. Mouse and pressure event monitors are
 installed only for gestures that are enabled. Non-trackpad multitouch devices
 such as the Touch Bar are ignored, and steady raw frames are limited to 60 Hz
 while finger landing and lift boundaries remain immediate.
