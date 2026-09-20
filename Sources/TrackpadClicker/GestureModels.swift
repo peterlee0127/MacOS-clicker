@@ -25,27 +25,27 @@ enum GestureKind: String, CaseIterable, Codable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .twoFingerClick: "雙指實體按壓"
-        case .twoFingerTap: "雙指輕點"
-        case .threeFingerClick: "三指實體按壓"
-        case .threeFingerTap: "三指輕點"
-        case .threeFingerLongTouch: "三指長觸（已移除）"
-        case .fourFingerClick: "四指實體按壓"
-        case .fourFingerTap: "四指輕點"
-        case .oneFingerForceTouch: "單指用力按壓"
+        case .twoFingerClick: L10n.string("gesture.two_finger_click.title", "Two-finger Click")
+        case .twoFingerTap: L10n.string("gesture.two_finger_tap.title", "Two-finger Tap")
+        case .threeFingerClick: L10n.string("gesture.three_finger_click.title", "Three-finger Click")
+        case .threeFingerTap: L10n.string("gesture.three_finger_tap.title", "Three-finger Tap")
+        case .threeFingerLongTouch: L10n.string("gesture.three_finger_long_touch.title", "Three-finger Hold (Removed)")
+        case .fourFingerClick: L10n.string("gesture.four_finger_click.title", "Four-finger Click")
+        case .fourFingerTap: L10n.string("gesture.four_finger_tap.title", "Four-finger Tap")
+        case .oneFingerForceTouch: L10n.string("gesture.force_touch.title", "One-finger Force Click")
         }
     }
 
     var subtitle: String {
         switch self {
-        case .twoFingerClick: "兩根手指實際按下觸控板"
-        case .twoFingerTap: "兩根手指快速碰觸後放開"
-        case .threeFingerClick: "三根手指實際按下觸控板"
-        case .threeFingerTap: "三根手指快速碰觸後放開"
-        case .threeFingerLongTouch: "舊版相容項目，不再辨識"
-        case .fourFingerClick: "四根手指實際按下觸控板"
-        case .fourFingerTap: "四根手指快速碰觸後放開"
-        case .oneFingerForceTouch: "Force Touch 進入第二段壓力"
+        case .twoFingerClick: L10n.string("gesture.two_finger_click.subtitle", "Physically press the trackpad with two fingers")
+        case .twoFingerTap: L10n.string("gesture.two_finger_tap.subtitle", "Quickly touch and release with two fingers")
+        case .threeFingerClick: L10n.string("gesture.three_finger_click.subtitle", "Physically press the trackpad with three fingers")
+        case .threeFingerTap: L10n.string("gesture.three_finger_tap.subtitle", "Quickly touch and release with three fingers")
+        case .threeFingerLongTouch: L10n.string("gesture.three_finger_long_touch.subtitle", "Legacy compatibility item; no longer recognized")
+        case .fourFingerClick: L10n.string("gesture.four_finger_click.subtitle", "Physically press the trackpad with four fingers")
+        case .fourFingerTap: L10n.string("gesture.four_finger_tap.subtitle", "Quickly touch and release with four fingers")
+        case .oneFingerForceTouch: L10n.string("gesture.force_touch.subtitle", "Press through to the second Force Touch pressure stage")
         }
     }
 
@@ -78,15 +78,15 @@ enum GestureAction: String, CaseIterable, Codable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .middleClick: "滑鼠中鍵"
-        case .leftClick: "滑鼠左鍵"
-        case .rightClick: "滑鼠右鍵"
-        case .quickLook: "快速查看"
+        case .middleClick: L10n.string("action.middle_click", "Middle Click")
+        case .leftClick: L10n.string("action.left_click", "Left Click")
+        case .rightClick: L10n.string("action.right_click", "Right Click")
+        case .quickLook: L10n.string("action.quick_look", "Quick Look")
         case .missionControl: "Mission Control"
-        case .appExpose: "App Exposé"
-        case .showDesktop: "顯示桌面"
-        case .openApplication: "開啟／切換到 App"
-        case .none: "不執行動作"
+        case .appExpose: L10n.string("action.app_expose", "App Exposé")
+        case .showDesktop: L10n.string("action.show_desktop", "Show Desktop")
+        case .openApplication: L10n.string("action.open_application", "Open or Switch to App")
+        case .none: L10n.string("action.none", "No Action")
         }
     }
 

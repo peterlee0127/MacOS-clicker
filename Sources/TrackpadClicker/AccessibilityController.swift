@@ -10,9 +10,11 @@ enum AccessibilityController {
         var errorDescription: String? {
             switch self {
             case .missingBundleIdentifier:
-                "找不到 App 的 Bundle ID。"
+                L10n.string("error.missing_bundle_identifier", "The app's bundle identifier could not be found.")
             case let .commandFailed(message):
-                message.isEmpty ? "系統拒絕重設輔助使用權限。" : message
+                message.isEmpty
+                    ? L10n.string("error.accessibility_reset_denied", "macOS refused to reset Accessibility permission.")
+                    : message
             }
         }
     }

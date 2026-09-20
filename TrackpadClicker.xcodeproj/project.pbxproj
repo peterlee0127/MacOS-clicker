@@ -23,6 +23,8 @@
 		A1000000000000000000000E /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* AppKit.framework */; };
 		A1000000000000000000000F /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* ApplicationServices.framework */; };
 		A10000000000000000000010 /* ActivityLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* ActivityLog.swift */; };
+		A10000000000000000000011 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* Localization.swift */; };
+		A10000000000000000000012 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +60,8 @@
 		A20000000000000000000014 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		A20000000000000000000015 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
 		A20000000000000000000016 /* ActivityLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityLog.swift; sourceTree = "<group>"; };
+		A20000000000000000000017 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
+		A20000000000000000000018 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +115,7 @@
 				A20000000000000000000004 /* GestureModels.swift */,
 				A20000000000000000000005 /* GestureRecognizer.swift */,
 				A20000000000000000000006 /* LaunchAtLoginController.swift */,
+				A20000000000000000000017 /* Localization.swift */,
 				A20000000000000000000007 /* MenuBarView.swift */,
 				A20000000000000000000008 /* MultitouchBridge.swift */,
 				A20000000000000000000009 /* PreferencesStore.swift */,
@@ -126,6 +131,7 @@
 				A2000000000000000000000F /* AppIcon.icns */,
 				A20000000000000000000010 /* AppIcon.png */,
 				A20000000000000000000011 /* Info.plist */,
+				A20000000000000000000018 /* Localizable.xcstrings */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -216,12 +222,12 @@
 			};
 			buildConfigurationList = AB0000000000000000000001 /* Build configuration list for PBXProject "TrackpadClicker" */;
 			compatibilityVersion = "Xcode 15.0";
-			developmentRegion = zh_TW;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
 				en,
-				zh_TW,
+				"zh-Hant",
 			);
 			mainGroup = A50000000000000000000001;
 			productRefGroup = A50000000000000000000007 /* Products */;
@@ -240,6 +246,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000000000000000000000D /* AppIcon.icns in Resources */,
+				A10000000000000000000012 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -264,6 +271,7 @@
 				A10000000000000000000004 /* GestureModels.swift in Sources */,
 				A10000000000000000000005 /* GestureRecognizer.swift in Sources */,
 				A10000000000000000000006 /* LaunchAtLoginController.swift in Sources */,
+				A10000000000000000000011 /* Localization.swift in Sources */,
 				A10000000000000000000007 /* MenuBarView.swift in Sources */,
 				A10000000000000000000008 /* MultitouchBridge.swift in Sources */,
 				A10000000000000000000009 /* PreferencesStore.swift in Sources */,
@@ -400,7 +408,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = AWP2538424;
 				ENABLE_APP_SANDBOX = NO;
@@ -413,7 +421,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.3.2;
+				MARKETING_VERSION = 0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = app.peterlee.trackpadclicker.debug;
 				PRODUCT_MODULE_NAME = TrackpadClicker;
 				PRODUCT_NAME = "Trackpad Clicker Dev";
@@ -429,7 +437,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = AWP2538424;
 				ENABLE_APP_SANDBOX = NO;
@@ -442,7 +450,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.3.2;
+				MARKETING_VERSION = 0.4;
 				PRODUCT_BUNDLE_IDENTIFIER = app.peterlee.trackpadclicker;
 				PRODUCT_MODULE_NAME = TrackpadClicker;
 				PRODUCT_NAME = "Trackpad Clicker";

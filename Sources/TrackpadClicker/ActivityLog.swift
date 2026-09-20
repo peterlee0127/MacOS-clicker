@@ -22,10 +22,20 @@ final class ActivityLog: ObservableObject {
 
     func setEnabled(_ enabled: Bool) {
         guard enabled != isEnabled else { return }
-        if !enabled { record("紀錄", "已停止紀錄；既有紀錄仍可查看。") }
+        if !enabled {
+            record(
+                L10n.string("log.category.logging", "Logging"),
+                L10n.string("log.logging.stopped", "Logging stopped. Existing entries remain available.")
+            )
+        }
         isEnabled = enabled
         defaults.set(enabled, forKey: Self.enabledKey)
-        if enabled { record("紀錄", "已開始紀錄。") }
+        if enabled {
+            record(
+                L10n.string("log.category.logging", "Logging"),
+                L10n.string("log.logging.started", "Logging started.")
+            )
+        }
     }
 
     func record(_ category: String, _ message: @autoclosure () -> String) {

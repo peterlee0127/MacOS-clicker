@@ -7,28 +7,61 @@ struct MenuBarView: View {
     @EnvironmentObject private var coordinator: GestureCoordinator
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Circle().fill(Color(nsColor: coordinator.status.color)).frame(width: 8, height: 8)
-                Text(coordinator.status.title).font(.headline)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.accentColor.gradient)
+                    Image(systemName: "hand.tap.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 32, height: 32)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(verbatim: "Trackpad Clicker")
+                        .font(.headline)
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(Color(nsColor: coordinator.status.color))
+                            .frame(width: 6, height: 6)
+                        Text(coordinator.status.title)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
+
             Divider()
-            Toggle("啟用觸控板手勢", isOn: Binding(get: {
+
+            Toggle(L10n.string("menu.enable_gestures", "Enable Trackpad Gestures"), isOn: Binding(get: {
                 preferences.value.isEnabled
             }, set: {
                 preferences.value.isEnabled = $0
                 coordinator.refresh()
             }))
-            Button("設定⋯") {
+            .toggleStyle(.switch)
+
+            Button {
                 openSettings()
                 NSApp.activate(ignoringOtherApps: true)
+            } label: {
+                Label(L10n.string("menu.open_settings", "Open Settings…"), systemImage: "gearshape")
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .keyboardShortcut(",")
+
             Divider()
-            Button("結束 Trackpad Clicker") { NSApp.terminate(nil) }
-                .keyboardShortcut("q")
+
+            Button(role: .destructive) {
+                NSApp.terminate(nil)
+            } label: {
+                Label(L10n.string("menu.quit", "Quit Trackpad Clicker"), systemImage: "power")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .keyboardShortcut("q")
         }
-        .padding(8)
-        .frame(width: 250)
+        .padding(12)
+        .frame(width: 270)
     }
 }

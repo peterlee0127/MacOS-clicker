@@ -132,13 +132,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         wakeRecoveryTask = nil
         // MultitouchSupport device references and event taps may be invalidated
         // while macOS sleeps. Release them before the hardware disappears.
-        AppModel.shared.coordinator.activityLog.record("電源", "系統即將睡眠，停止監聽。")
+        AppModel.shared.coordinator.activityLog.record(
+            L10n.string("log.category.power", "Power"),
+            L10n.string("log.power.sleep", "The Mac is going to sleep. Monitoring stopped.")
+        )
         AppModel.shared.coordinator.stop()
     }
 
     @objc
     private func systemDidBecomeAvailable(_ notification: Notification) {
-        AppModel.shared.coordinator.activityLog.record("電源", "收到喚醒或工作階段恢復通知，準備重新連線。")
+        AppModel.shared.coordinator.activityLog.record(
+            L10n.string("log.category.power", "Power"),
+            L10n.string("log.power.wake", "Wake or session-resume notification received. Preparing to reconnect.")
+        )
         scheduleWakeRecovery()
     }
 
@@ -155,7 +161,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 }
                 guard let self, !Task.isCancelled else { return }
                 let coordinator = AppModel.shared.coordinator
-                coordinator.reconnect(reason: "喚醒後重新建立監聽。")
+                coordinator.reconnect(reason: L10n.string(
+                    "log.reconnect.after_wake",
+                    "Re-establishing monitoring after wake."
+                ))
                 guard coordinator.status == .noTrackpad
                         || coordinator.status == .eventMonitorUnavailable else {
                     self.wakeRecoveryTask = nil
@@ -186,10 +195,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .environmentObject(model.coordinator)
         let window = NSWindow(contentViewController: NSHostingController(rootView: rootView))
         window.delegate = self
-        window.title = "Trackpad Clicker 設定"
+        window.title = L10n.string("window.settings.title", "Trackpad Clicker Settings")
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        window.setContentSize(NSSize(width: 680, height: 720))
-        window.minSize = NSSize(width: 620, height: 560)
+        window.setContentSize(NSSize(width: 920, height: 740))
+        window.minSize = NSSize(width: 760, height: 600)
         window.isReleasedWhenClosed = false
         window.center()
         return window
@@ -206,7 +215,7 @@ struct TrackpadClickerApp: App {
                 .environmentObject(AppModel.shared.preferences)
                 .environmentObject(AppModel.shared.coordinator)
         }
-        .defaultSize(width: 680, height: 720)
+        .defaultSize(width: 920, height: 740)
         .windowResizability(.contentMinSize)
     }
 }

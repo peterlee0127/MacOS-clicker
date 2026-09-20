@@ -13,11 +13,11 @@ final class GestureCoordinator: NSObject, ObservableObject {
 
         var title: String {
             switch self {
-            case .stopped: "已暫停"
-            case .needsPermission: "需要輔助使用權限"
-            case .noTrackpad: "找不到觸控板"
-            case .eventMonitorUnavailable: "無法建立事件監聽"
-            case .listening: "正在聆聽手勢"
+            case .stopped: L10n.string("status.stopped", "Paused")
+            case .needsPermission: L10n.string("status.needs_permission", "Accessibility Permission Required")
+            case .noTrackpad: L10n.string("status.no_trackpad", "Trackpad Not Found")
+            case .eventMonitorUnavailable: L10n.string("status.event_monitor_unavailable", "Event Monitor Unavailable")
+            case .listening: L10n.string("status.listening", "Listening for Gestures")
             }
         }
 
@@ -35,7 +35,9 @@ final class GestureCoordinator: NSObject, ObservableObject {
 
     @Published private(set) var status: Status = .stopped {
         didSet {
-            if oldValue != status { activityLog.record("監聽", status.title) }
+            if oldValue != status {
+                activityLog.record(L10n.string("log.category.monitoring", "Monitoring"), status.title)
+            }
         }
     }
     @Published private(set) var fingerCount = 0
@@ -126,7 +128,12 @@ final class GestureCoordinator: NSObject, ObservableObject {
 
     func setTesting(_ enabled: Bool) {
         guard isTesting != enabled else { return }
-        activityLog.record("測試", enabled ? "進入測試模式，不執行動作。" : "離開測試模式。")
+        activityLog.record(
+            L10n.string("log.category.testing", "Testing"),
+            enabled
+                ? L10n.string("log.testing.started", "Entered test mode. Configured actions will not run.")
+                : L10n.string("log.testing.stopped", "Exited test mode.")
+        )
         isTesting = enabled
         if enabled { clearTestResults() }
         refresh()
@@ -137,8 +144,11 @@ final class GestureCoordinator: NSObject, ObservableObject {
         lastGesture = nil
     }
 
-    func reconnect(reason: String = "手動重新偵測") {
-        activityLog.record("重連", reason)
+    func reconnect(reason: String? = nil) {
+        activityLog.record(
+            L10n.string("log.category.reconnect", "Reconnect"),
+            reason ?? L10n.string("log.reconnect.manual", "Manual reconnect")
+        )
         lastRecovery = Date()
         refresh()
     }
@@ -162,13 +172,19 @@ final class GestureCoordinator: NSObject, ObservableObject {
                 // after a minute, without treating silence as an error in the UI.
                 if status == .noTrackpad || status == .eventMonitorUnavailable
                     || bridge.secondsSinceLastCallback >= 60 {
-                    reconnect(reason: "健康檢查：監聽未就緒或超過 60 秒未收到觸控資料（也可能是閒置）。")
+                    reconnect(reason: L10n.string(
+                        "log.reconnect.health_check",
+                        "Health check: monitoring was unavailable or no touch data arrived for 60 seconds (the trackpad may simply be idle)."
+                    ))
                     return
                 }
                 if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
                     CGEvent.tapEnable(tap: eventTap, enable: true)
                     if !CGEvent.tapIsEnabled(tap: eventTap) {
-                        reconnect(reason: "事件監聽重新啟用失敗。")
+                        reconnect(reason: L10n.string(
+                            "log.reconnect.event_monitor_failed",
+                            "The event monitor could not be re-enabled."
+                        ))
                         return
                     }
                 }
@@ -192,7 +208,12 @@ final class GestureCoordinator: NSObject, ObservableObject {
 
     fileprivate func handleEvent(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            activityLog.record("監聽", type == .tapDisabledByTimeout ? "事件監聽逾時，嘗試重新啟用。" : "系統停用事件監聽，嘗試重新啟用。")
+            activityLog.record(
+                L10n.string("log.category.monitoring", "Monitoring"),
+                type == .tapDisabledByTimeout
+                    ? L10n.string("log.monitoring.timeout", "The event monitor timed out. Attempting to re-enable it.")
+                    : L10n.string("log.monitoring.disabled", "The system disabled the event monitor. Attempting to re-enable it.")
+            )
             if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
@@ -338,10 +359,22 @@ final class GestureCoordinator: NSObject, ObservableObject {
         lastGesture = gesture
         detectedGestures.insert(gesture)
         activityPulse += 1
-        activityLog.record("手勢", "辨識到\(gesture.title)\(isTesting ? "（測試，不執行）" : "")")
+        activityLog.record(
+            L10n.string("log.category.gesture", "Gesture"),
+            isTesting
+                ? L10n.format("log.gesture.detected_testing", "Detected %@ (test only; no action)", gesture.title)
+                : L10n.format("log.gesture.detected", "Detected %@", gesture.title)
+        )
         guard !isTesting else { return }
         let binding = preferences.value.binding(for: gesture)
-        activityLog.record("動作", "要求執行：\(binding.action.title)（不代表目標 App 已完成動作）")
+        activityLog.record(
+            L10n.string("log.category.action", "Action"),
+            L10n.format(
+                "log.action.requested",
+                "Requested: %@ (this does not confirm that the target app completed the action)",
+                binding.action.title
+            )
+        )
         performer.perform(binding, haptic: preferences.value.hapticFeedback)
     }
 }
@@ -352,10 +385,16 @@ extension GestureCoordinator: MultitouchBridgeDelegate {
         Task { @MainActor [weak self] in
             guard let self, status == .listening, self.bridge.sessionID == sessionID else { return }
             if lastProcessedFrameTimestamp == -Double.infinity {
-                activityLog.record("觸控板", "本次連線已收到觸控資料。")
+                activityLog.record(
+                    L10n.string("log.category.trackpad", "Trackpad"),
+                    L10n.string("log.trackpad.received_data", "Touch data received for this connection.")
+                )
             }
             if frame.timestamp < lastProcessedFrameTimestamp - 1 {
-                activityLog.record("觸控板", "裝置時間戳重置，已重設辨識狀態。")
+                activityLog.record(
+                    L10n.string("log.category.trackpad", "Trackpad"),
+                    L10n.string("log.trackpad.timestamp_reset", "The device timestamp reset. Gesture recognition state was reset.")
+                )
                 recognizer.reset()
                 pressureRecognizer.reset()
                 physicalClickPressureRecognizer.reset()
